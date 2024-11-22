@@ -1,4 +1,4 @@
-const { sleep, timeout, race, TimeoutErrors } = require("@/promises");
+const { sleep, timeout, race, TimeoutErrors, throttle } = require("@/promises");
 
 describe("sleep", () => {
   test("sleeps for half a second passing 500", async () => {
@@ -35,6 +35,38 @@ function mockRejectedPromise(error: any, time: number) {
     setTimeout(() => reject(new Error(error)), time)
   );
 }
+
+describe("Throttle", () => {
+  test("In case of only resolve", async () => {
+    const data = "resolved data";
+    const success = await throttle([
+      () => mockResolvedPromise(data, 100),
+      () => mockResolvedPromise(data, 200),
+      () => mockResolvedPromise(data, 300),
+    ]);
+    expect(success).toEqual([data, data, data]);
+  });
+  test("In case of one rejected", async () => {
+    const data = "resolved data";
+    await expect(() =>
+      throttle([
+        () => mockResolvedPromise(data, 100),
+        () => mockRejectedPromise(TimeoutErrors.RESPONSE_ERROR_MESSAGE, 200),
+        () => mockResolvedPromise(data, 300),
+      ])
+    ).rejects.toThrow(TimeoutErrors.RESPONSE_ERROR_MESSAGE);
+  });
+  test("In case of all rejected", async () => {
+    const data = "resolved data";
+    await expect(() =>
+      throttle([
+        () => mockRejectedPromise(TimeoutErrors.RESPONSE_ERROR_MESSAGE, 200),
+        () => mockRejectedPromise(TimeoutErrors.RESPONSE_ERROR_MESSAGE, 200),
+        () => mockRejectedPromise(TimeoutErrors.RESPONSE_ERROR_MESSAGE, 200),
+      ])
+    ).rejects.toThrow(TimeoutErrors.RESPONSE_ERROR_MESSAGE);
+  });
+});
 
 describe("timeout", () => {
   const data = "resolved data";
@@ -81,11 +113,7 @@ describe("race", () => {
     const second = sleepForNTime(1000);
     const third = sleepForNTime(2000);
 
-    const race_winner = await race([
-      first,
-      second,
-      third,
-    ]);
+    const race_winner = await race([first, second, third]);
 
     expect(race_winner).toBe(500);
   });
@@ -95,11 +123,7 @@ describe("race", () => {
     const second = sleepForNTime(500);
     const third = sleepForNTime(2000);
 
-    const race_winner = await race([
-      first,
-      second,
-      third,
-    ]);
+    const race_winner = await race([first, second, third]);
 
     expect(race_winner).toBe(500);
   });
@@ -109,14 +133,8 @@ describe("race", () => {
     const second = sleepForNTime(1000);
     const third = sleepForNTime(500);
 
-    const race_winner = await race([
-      first,
-      second,
-      third,
-    ]);
+    const race_winner = await race([first, second, third]);
 
     expect(race_winner).toBe(500);
   });
-
-
 });

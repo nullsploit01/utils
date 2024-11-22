@@ -1,3 +1,4 @@
+import Asyncrify from "asyncrify";
 interface TimeoutErrorConstants {
   [erorr: string]: string;
 }
@@ -14,6 +15,33 @@ const TimeoutErrors: TimeoutErrorConstants = {
  */
 function sleep(time: number = 1000) {
   return new Promise(resolve => setTimeout(resolve, time));
+}
+
+/**
+ * @callback promiseFunction
+ * @return {Promise<T>}
+ */
+
+/**
+ * This method receives an array of functions that returns a promise and a max concurrency
+ * @param {promiseFunction[]} promises - an array of functions that return a promise
+ * @returns {Promise<T[]>} - a promise array of all the promises passed in
+ */
+async function throttle<T>(
+  promises: (() => Promise<T>)[],
+  maxConcurrency: number
+): Promise<T[]> {
+  const returnArray = new Array<Promise<T>>(promises.length);
+  const queue = new Asyncrify(maxConcurrency);
+  for (let i = 0; i < promises.length; i++) {
+    returnArray[i] = new Promise((resolve, reject) => {
+      queue.add(promises[i], (res, err) => {
+        if (err) reject(err);
+        resolve(res);
+      });
+    });
+  }
+  return Promise.all(returnArray);
 }
 
 /**
@@ -55,4 +83,4 @@ async function race<T>(array_of_promises: Promise<T>[]) {
   return result;
 }
 
-export { sleep, timeout, race, TimeoutErrors };
+export { sleep, timeout, race, TimeoutErrors, throttle };
